@@ -3,12 +3,8 @@ import textract
 import nltk
 import csv
 from collections import Counter
-from pprint import pprint
 from tqdm import tqdm
-import datetime
-import json
-import warnings
-import pandas as pd
+from datetime import datetime
 
 
 ###################### Config ########################
@@ -53,18 +49,20 @@ def createFileStructure():
     global timestamp
     timestamp = t0.strftime("%Y-%m-%d__%p-%H_%M_%S")
 
-    # Save the directory paths because we'll use them a lot
+    # Save the directory path because we'll use it a lot
     global THIS_RUN_OUTPUT_DIR
     THIS_RUN_OUTPUT_DIR = OUTPUT_DIRECTORY + timestamp + "/"
-    global THIS_RUN_JSON_DIR
-    THIS_RUN_JSON_DIR = THIS_RUN_OUTPUT_DIR + "json/"
 
     # Make the directories
     os.mkdir(THIS_RUN_OUTPUT_DIR)
-    os.mkdir(THIS_RUN_JSON_DIR)
-    os.mkdir(THIS_RUN_JSON_DIR + "words")
-    os.mkdir(THIS_RUN_JSON_DIR + "bigrams")
-    os.mkdir(THIS_RUN_JSON_DIR + "trigrams")
+
+    # Create the word count CSVs
+    with open(THIS_RUN_OUTPUT_DIR + "words_headers.csv", "w") as outputFile:
+        outputFile.write(RESUME_ID_COLUMN_NAME)
+    with open(THIS_RUN_OUTPUT_DIR + "bigrams_headers.csv", "w") as outputFile:
+        outputFile.write(RESUME_ID_COLUMN_NAME)
+    with open(THIS_RUN_OUTPUT_DIR + "trigrams_headers.csv", "w") as outputFile:
+        outputFile.write(RESUME_ID_COLUMN_NAME)
 
     # Terms CSV stuff:
     # Each term has a column, using the first term as the general name
@@ -176,16 +174,43 @@ def countWords(words):
     return Counter(words)
 
 
-# Write the {word: count} pairs to a JSON file
+# Write the {word: count} pairs
 def collectWords(words, whichWords, resumeName):
     postProcessed = postprocessAllWords(countWords(words))
     postProcessed[RESUME_ID_COLUMN_NAME] = resumeName
 
-    with open(
-        THIS_RUN_JSON_DIR + whichWords + "/" + resumeName + ".json",
-        "w",
-    ) as outputFile:
-        json.dump(postProcessed, outputFile)
+    # Read existing header file
+    with open(THIS_RUN_OUTPUT_DIR + whichWords + "_headers.csv", "r") as inputFile:
+        headers = inputFile.readline().strip().split(",")
+
+    # Write to file
+    with open(THIS_RUN_OUTPUT_DIR + whichWords + ".csv", "a") as outputFile:
+        keys = list(postProcessed.keys())
+        keysAlreadyRecorded = set()
+        thisRow = ""
+
+        # Add counts for every word already seen
+        for h in headers:
+            header = h.strip()
+            if header in keys:
+                thisRow += str(postProcessed[header]) + ","
+            else:
+                thisRow += "0,"
+            keysAlreadyRecorded.add(header)
+
+        # Add new words (with counts)
+        for key in keys:
+            if key not in keysAlreadyRecorded:
+                headers.append(key)
+                thisRow += str(postProcessed[key]) + ","
+
+        # Write the new info to the file
+        # [-1] to trim off the last extra comma
+        outputFile.write(thisRow[:-1] + "\n")
+
+    # Write new headers
+    with open(THIS_RUN_OUTPUT_DIR + whichWords + "_headers.csv", "w") as outputFile:
+        outputFile.write(",".join(headers))
 
 
 # Sort {word: count} pairs by count
@@ -211,51 +236,18 @@ def postprocessAllWords(allSeen):
     return sortByCount(newList)
 
 
-# Merge all the JSON files into a CSV
-def combineTermsCounts(whichWords):
-    dfs = []
-    folderRoot = THIS_RUN_JSON_DIR + whichWords + "/"
-    # Go through every json file and convert to a dataframe
-    print("Reading in files...")
-    for thisFilename in tqdm(os.listdir(folderRoot)):
-        file_path = folderRoot + thisFilename
-        with open(file_path, "r") as inputFile:
-            data = json.load(inputFile)
-            tmpDF = pd.DataFrame.from_dict([data])
-            dfs.append(tmpDF)
-    print("Combining files...")
-    # TODO: this is way, way too slow. Do it as we go instead of after?
-    # Combine all the dataframes
-    finalDF = pd.DataFrame()
-    # with warnings.catch_warnings():
-    #     # append is deprecated; hide the error message (via https://stackoverflow.com/a/66504876)
-    #     warnings.simplefilter(action="ignore", category=FutureWarning)
-    #     for df in tqdm(dfs):
-    #         finalDF = finalDF.append(df)
-    # finalDF = pd.concat(dfs, axis=0, join="outer")
-
-    # Set the index column
-    finalDF = finalDF.set_index(RESUME_ID_COLUMN_NAME)
-    # Replace all NaNs with 0
-    finalDF = finalDF.fillna(0)
-    # Convert everything to int (default seems to be float)
-    finalDF = finalDF.apply(pd.to_numeric, downcast="integer")
-    # Write out to CSV
-    finalDF.to_csv(THIS_RUN_OUTPUT_DIR + whichWords + ".csv")
-
-
 def main():
     global t0
-    t0 = datetime.datetime.now()
+    t0 = datetime.now()
 
     print("Initializing constants...")
     initializeConstants()
-    t1 = datetime.datetime.now()
+    t1 = datetime.now()
     print(f"(took {(t1 - t0).total_seconds()} seconds)\n")
 
     print("Creating output file structure...")
     termsWriter, termsFileRef = createFileStructure()
-    t2 = datetime.datetime.now()
+    t2 = datetime.now()
     print(f"(took {(t2 - t1).total_seconds()} seconds)\n")
 
     print("Searching resumes...")
@@ -283,28 +275,13 @@ def main():
         collectWords(bigrams, "bigrams", thisFilename)
         collectWords(trigrams, "trigrams", thisFilename)
 
-    t3 = datetime.datetime.now()
+    t3 = datetime.now()
     print(f"(took {(t3 - t2).total_seconds()} seconds)\n")
 
     termsFileRef.close()
 
-    print("\nCombining single word counts...")
-    combineTermsCounts("words")
-    t4 = datetime.datetime.now()
-    print(f"(took {(t4 - t3).total_seconds()} seconds)\n")
-
-    print("\nCombining bigram counts...")
-    combineTermsCounts("bigrams")
-    t5 = datetime.datetime.now()
-    print(f"(took {(t5 - t4).total_seconds()} seconds)\n")
-
-    print("\nCombining trigram counts...")
-    combineTermsCounts("trigrams")
-    t6 = datetime.datetime.now()
-    print(f"(took {(t6 - t5).total_seconds()} seconds)\n")
-
     print("Done! :)")
-    tLast = datetime.datetime.now()
+    tLast = datetime.now()
     print(f"(total runtime: {(tLast - t0).total_seconds()} seconds)")
 
 
