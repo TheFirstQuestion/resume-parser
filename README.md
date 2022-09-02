@@ -40,7 +40,7 @@ A Python script to scan resumes for signals of elite class status.
 - [Usage](#usage)
 - [Getting Started](#getting_started)
 - [Contributing](#contributing)
-<!-- - [Acknowledgements](#acknowledgements) -->
+- [Acknowledgements](#acknowledgements)
 
 ## About <a name="about"></a>
 
@@ -51,8 +51,12 @@ Anonymous screening seems to be a good solution for reducing bias in hiring. How
 ## Usage <a name="usage"></a>
 
 ```sh
-python take5.py
+python final.py
 ```
+
+The script will output a CSV where each row is a resume and each column is a term. The intersection of each row and column holds the number of occurences of that term (and its synonyms) in that resume.
+
+Sample resumes can be found [in this Drive folder](https://drive.google.com/drive/folders/1FPTQh4UGLpja2ZslkmtEgshESX-Ub48K?usp=sharing), and a sample output is available [in `/sample_output/`](/sample_output/terms.csv).
 
 <!-- _For more examples, please refer to the [Documentation](https://example.com)_ -->
 
@@ -64,29 +68,31 @@ These instructions will get you a copy of the project up and running.
 
 ### Prerequisites
 
-The things you need to use the software and how to install them.
-
-### Installation
-
 1. Clone the repo:
 
     ```sh
     git clone https://github.com/TheFirstQuestion/resume-parser.git
     ```
 
-2. Install dependencies:
+2. Install dependencies via `pip` / `conda` / `mamba`:
 
     ```sh
-    mamba install textract nltk tqdm pandas
+    textract nltk tqdm pandas
     ```
 
-3. Run `setup.py` (once, ever) to download and generate necessary files:
+3. Run `setup.py` to download and generate necessary files:
 
     ```sh
     python setup.py
     ```
 
-4. Edit the config section at the top of the script to suit your needs.
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+### Running
+
+1. Edit the terms lists (in `/terms_of_interest`) to suit your needs. Each line represents a concept, so each new term should be on a new line. Synonyms of the term should be comma-separated on the same line; their counts will be combined in the output. The terms are divided into different files for convenience only.
+
+2. Edit the config section at the top of the script to suit your needs.
 
     | Variable  | Usage | Suggested Value |
     | --------  | ------------------- | --------------------- |
@@ -94,13 +100,15 @@ The things you need to use the software and how to install them.
     | `TERMS_LOCATION` | Path (relative to script location) to the directory containing the CSV file(s) defining the terms of interest. | `"./terms_of_interest/"` |
     | `OUTPUT_DIRECTORY` | Path (relative to script location) to the directory wherein the script will write the output files.  | `"./output/"` |
     | `RESUME_ID_COLUMN_NAME` | The header for the CSV column that identifies each resume. | `"resumeName"` |
-    | `SKIP_GREEK` | Should the script skip searching for all the Greek terms of interest? | `True` |
+    | `SKIP_GREEK` | Should the script skip searching for all the Greek terms of interest? | `False` |
 
-5. Run the script.
+3. Run the script.
 
     ```sh
-    python take5.py
+    python final.py
     ```
+
+    On the sample set of 2538 resumes, the script finishes in ~7 minutes, with the main loop running at ~6 resumes per second.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -116,10 +124,8 @@ Feel free to do any of the following:
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
-<!-- ## Acknowledgements <a name="acknowledgements"></a>
+## Acknowledgements <a name="acknowledgements"></a>
 
-- Hat tip to anyone whose code was used
-- Inspiration
-- References
+- Most of the sample resumes used in testing came from the [Kaggle resume dataset](https://www.kaggle.com/datasets/snehaanbhawal/resume-dataset), which was a super convenient resource.
 
-<p align="right">(<a href="#top">back to top</a>)</p> -->
+<p align="right">(<a href="#top">back to top</a>)</p>
